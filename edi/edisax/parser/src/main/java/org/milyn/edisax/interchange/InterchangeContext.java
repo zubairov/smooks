@@ -24,11 +24,14 @@ import org.milyn.edisax.model.internal.Description;
 import org.milyn.edisax.model.internal.Edimap;
 import org.milyn.edisax.model.internal.Segment;
 import org.milyn.edisax.unedifact.registry.MappingsRegistry;
+import org.milyn.edisax.util.SchemaLocationResolver;
 import org.milyn.lang.MutableInt;
 import org.milyn.namespace.NamespaceResolver;
 import org.milyn.namespace.SimpleNamespaceResolver;
 import org.xml.sax.ContentHandler;
 import org.xml.sax.SAXException;
+import org.xml.sax.SAXNotRecognizedException;
+import org.xml.sax.SAXNotSupportedException;
 
 /**
  * EDI message interchange context object.
@@ -48,6 +51,8 @@ public class InterchangeContext {
 	private MappingsRegistry registry;
     private NamespaceResolver namespaceResolver;
 
+	private SchemaLocationResolver schemaResolver;
+
     /**
 	 * Public constructor.
 	 * 
@@ -56,9 +61,10 @@ public class InterchangeContext {
      * @param contentHandler The {@link org.xml.sax.ContentHandler content handler} instance to receive the interchange events.
      * @param controlBlockHandlerFactory Control Block Handler Factory.
      * @param namespaceResolver Namespace resolver.
+     * @param schemaResolver 
      * @param validate Validate the data types of the EDI message data as defined in the mapping model.
 	 */
-	public InterchangeContext(BufferedSegmentReader segmentReader, MappingsRegistry registry, ContentHandler contentHandler, ControlBlockHandlerFactory controlBlockHandlerFactory, NamespaceResolver namespaceResolver, boolean validate) {
+	public InterchangeContext(BufferedSegmentReader segmentReader, MappingsRegistry registry, ContentHandler contentHandler, ControlBlockHandlerFactory controlBlockHandlerFactory, NamespaceResolver namespaceResolver, SchemaLocationResolver schemaResolver, boolean validate) {
 		AssertArgument.isNotNull(segmentReader, "segmentReader");
 		AssertArgument.isNotNull(registry, "registry");
 		AssertArgument.isNotNull(contentHandler, "contentHandler");
@@ -69,12 +75,18 @@ public class InterchangeContext {
         this.controlBlockHandlerFactory = controlBlockHandlerFactory;
 		this.validate = validate;
         this.namespaceResolver = namespaceResolver;
+        this.schemaResolver = schemaResolver;
 
 		controlSegmentParser = new EDIParser();
 		controlSegmentParser.setBufferedSegmentReader(segmentReader);
         controlSegmentParser.setNamespaceResolver(namespaceResolver);
 		controlSegmentParser.setContentHandler(contentHandler);
 		controlSegmentParser.setIndentDepth(indentDepth);
+		try {
+			controlSegmentParser.setProperty(EDIParser.SCHEMA_LOCATION_RESOLVER, schemaResolver);
+		} catch (Exception e) {
+			// Ignore
+		}
 
         Edimap controlMap = new Edimap();
         EdifactModel controlModel = new EdifactModel(controlMap);

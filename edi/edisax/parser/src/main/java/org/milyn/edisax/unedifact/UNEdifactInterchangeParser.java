@@ -31,6 +31,7 @@ import org.milyn.edisax.model.internal.Delimiters;
 import org.milyn.edisax.unedifact.handlers.r41.UNEdifact41ControlBlockHandlerFactory;
 import org.milyn.edisax.unedifact.registry.LazyMappingsRegistry;
 import org.milyn.edisax.unedifact.registry.MappingsRegistry;
+import org.milyn.edisax.util.SchemaLocationResolver;
 import org.milyn.namespace.NamespaceResolver;
 import org.milyn.xml.hierarchy.HierarchyChangeListener;
 import org.milyn.xml.hierarchy.HierarchyChangeReader;
@@ -63,6 +64,8 @@ public class UNEdifactInterchangeParser implements XMLReader, HierarchyChangeRea
 	private ContentHandler contentHandler;
     private HierarchyChangeListener hierarchyChangeListener;
     private InterchangeContext interchangeContext;
+
+	private SchemaLocationResolver resolver;
 
     public void parse(InputSource unedifactInterchange) throws IOException, SAXException {
 		AssertArgument.isNotNull(unedifactInterchange, "unedifactInterchange");
@@ -118,7 +121,7 @@ public class UNEdifactInterchangeParser implements XMLReader, HierarchyChangeRea
 	}
 
     protected InterchangeContext createInterchangeContext(BufferedSegmentReader segmentReader, boolean validate, ControlBlockHandlerFactory controlBlockHandlerFactory, NamespaceResolver namespaceResolver) {
-        return new InterchangeContext(segmentReader, registry, contentHandler, controlBlockHandlerFactory, namespaceResolver, validate);
+        return new InterchangeContext(segmentReader, registry, contentHandler, controlBlockHandlerFactory, namespaceResolver, resolver, validate);
     }
 
     public InterchangeContext getInterchangeContext() {
@@ -203,10 +206,16 @@ public class UNEdifactInterchangeParser implements XMLReader, HierarchyChangeRea
     }
 
     public Object getProperty(String name) throws SAXNotRecognizedException, SAXNotSupportedException {
+    	if (EDIParser.SCHEMA_LOCATION_RESOLVER.equals(name)) {
+    		return resolver;
+    	}
     	return null;
     }
 
     public void setProperty(String name, Object value) throws SAXNotRecognizedException, SAXNotSupportedException {
+    	if (EDIParser.SCHEMA_LOCATION_RESOLVER.equals(name)) {
+    		this.resolver = (SchemaLocationResolver) value;
+    	}
     }
 
 }

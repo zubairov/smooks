@@ -15,30 +15,27 @@
  */
 package org.milyn.edisax.v1_5.namespaces;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.xml.XMLConstants;
 
+import junit.framework.TestCase;
+
+import org.milyn.edisax.EDIParser;
 import org.milyn.edisax.util.NamespaceDeclarationStack;
+import org.milyn.edisax.util.SchemaLocationResolver;
 import org.xml.sax.Attributes;
 import org.xml.sax.ContentHandler;
-import org.xml.sax.DTDHandler;
-import org.xml.sax.EntityResolver;
-import org.xml.sax.ErrorHandler;
-import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 import org.xml.sax.SAXNotRecognizedException;
 import org.xml.sax.SAXNotSupportedException;
-import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.AttributesImpl;
 import org.xml.sax.helpers.DefaultHandler;
+import org.xml.sax.helpers.XMLFilterImpl;
 
-import junit.framework.TestCase;
 
-
-public class NamespaceDeclarationStackTest extends TestCase {
+public class NamespaceDeclarationStackTest extends TestCase implements SchemaLocationResolver {
 
 	public static final class MockContentHandler extends DefaultHandler {
 	
@@ -60,7 +57,7 @@ public class NamespaceDeclarationStackTest extends TestCase {
 	
 	public void testSimpleMaping() throws Exception {
 		MockContentHandler handler = new MockContentHandler();
-		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler));
+		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler, null));
 		Attributes a1 = nds.push("a", "nsa", null);
 		nds.pop();
 		assertEquals("[start:a:nsa, end:a]", handler.history.toString());
@@ -71,7 +68,7 @@ public class NamespaceDeclarationStackTest extends TestCase {
 	
 	public void testSimpleMaping2() throws Exception {
 		MockContentHandler handler = new MockContentHandler();
-		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler));
+		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler, null));
 		Attributes a1 = nds.push("a", "nsa", null);
 		Attributes a2 = nds.push("a", "nsa", null);
 		nds.pop();
@@ -85,66 +82,52 @@ public class NamespaceDeclarationStackTest extends TestCase {
 	
 	public void testTwoNamespacesMapping() throws Exception {
 		MockContentHandler handler = new MockContentHandler();
-		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler));
+		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler, null));
 		Attributes a1 = nds.push("a", "nsa", null);
 		Attributes a2 = nds.push("b", "nsb", null);
 		nds.pop();
 		nds.pop();
 		assertEquals("[start:a:nsa, start:b:nsb, end:b, end:a]", handler.history.toString());
-		assertEquals(1, a1.getLength());
-		assertEquals("xmlns:a", a1.getQName(0));
-		assertEquals("nsa", a1.getValue(0));
-		assertEquals(1, a2.getLength());
-		assertEquals("xmlns:b", a2.getQName(0));
-		assertEquals("nsb", a2.getValue(0));
+		assertEquals("xmlns:a=\"nsa\"", render(a1));
+		assertEquals("xmlns:b=\"nsb\"", render(a2));
 	}
+
+	public void testTwoNamespacesMappingWithResolver() throws Exception {
+		MockContentHandler handler = new MockContentHandler();
+		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler, this));
+		Attributes a1 = nds.push("a", "nsa", null);
+		Attributes a2 = nds.push("b", "nsb", null);
+		nds.pop();
+		nds.pop();
+		assertEquals("[start:a:nsa, start:b:nsb, end:b, end:a]", handler.history.toString());
+		assertEquals("xmlns:a=\"nsa\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"nsa loc://nsa\"", render(a1));
+		assertEquals("xmlns:b=\"nsb\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"nsb loc://nsb\"", render(a2));
+	}
+
 	
 	public void testNamespacesWithAttributes() throws Exception {
 		AttributesImpl attrs = new AttributesImpl();
 		attrs.addAttribute(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "b", "xmlns:b", "CDATA", "nsb");
+		attrs.addAttribute(XMLConstants.XMLNS_ATTRIBUTE_NS_URI, "c", "xmlns:c", "CDATA", "nsc");
 		MockContentHandler handler = new MockContentHandler();
-		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler));
-		nds.push("a", "nsa", attrs);
+		NamespaceDeclarationStack nds = new NamespaceDeclarationStack(new MockXMLReader(handler, this));
+		Attributes res = nds.push("a", "nsa", attrs);
 		nds.push("b", "nsb", null);
 		nds.pop();
 		nds.pop();
-		assertEquals("[start:b:nsb, start:a:nsa, end:a, end:b]", handler.history.toString());
+		assertEquals("[start:b:nsb, start:c:nsc, start:a:nsa, end:a, end:c, end:b]", handler.history.toString());
+		assertEquals("xmlns:b=\"nsb\" xmlns:c=\"nsc\" xmlns:a=\"nsa\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:schemaLocation=\"nsb loc://nsb nsc loc://nsc nsa loc://nsa\"", render(res));
 	}
 
-    private class MockXMLReader implements XMLReader {
+    private class MockXMLReader extends XMLFilterImpl {
 
         private ContentHandler contentHandler;
 
-        private MockXMLReader(ContentHandler contentHandler) {
+        private SchemaLocationResolver resolver = null;
+        
+        private MockXMLReader(ContentHandler contentHandler, SchemaLocationResolver resolver) {
             this.contentHandler = contentHandler;
-        }
-
-        public boolean getFeature(String s) throws SAXNotRecognizedException, SAXNotSupportedException {
-            return false;
-        }
-
-        public void setFeature(String s, boolean b) throws SAXNotRecognizedException, SAXNotSupportedException {
-        }
-
-        public Object getProperty(String s) throws SAXNotRecognizedException, SAXNotSupportedException {
-            return null;
-        }
-
-        public void setProperty(String s, Object o) throws SAXNotRecognizedException, SAXNotSupportedException {
-        }
-
-        public void setEntityResolver(EntityResolver entityResolver) {
-        }
-
-        public EntityResolver getEntityResolver() {
-            return null;
-        }
-
-        public void setDTDHandler(DTDHandler dtdHandler) {
-        }
-
-        public DTDHandler getDTDHandler() {
-            return null;
+            this.resolver = resolver;
         }
 
         public void setContentHandler(ContentHandler contentHandler) {
@@ -155,17 +138,28 @@ public class NamespaceDeclarationStackTest extends TestCase {
             return contentHandler;
         }
 
-        public void setErrorHandler(ErrorHandler errorHandler) {
-        }
-
-        public ErrorHandler getErrorHandler() {
-            return null;
-        }
-
-        public void parse(InputSource inputSource) throws IOException, SAXException {
-        }
-
-        public void parse(String s) throws IOException, SAXException {
+        @Override
+        public Object getProperty(String name)
+        		throws SAXNotRecognizedException, SAXNotSupportedException {
+        	if (EDIParser.SCHEMA_LOCATION_RESOLVER.equals(name)) {
+        		return resolver;
+        	}
+        	return super.getProperty(name);
         }
     }
+
+	public String getSchemaLocation(String namespace) {
+		return "loc://" + namespace;
+	}
+	
+	private String render(Attributes attrs) {
+		StringBuilder result = new StringBuilder();
+		for (int i = 0; i < attrs.getLength(); i++) {
+			String qname = attrs.getQName(i);
+			String value = attrs.getValue(i);
+			result.append(qname).append("=\"");
+			result.append(value).append("\" ");
+		}
+		return result.toString().trim();
+	}
 }

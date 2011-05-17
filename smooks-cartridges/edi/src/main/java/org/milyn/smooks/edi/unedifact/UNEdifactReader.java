@@ -28,6 +28,7 @@ import org.milyn.edisax.interchange.InterchangeContext;
 import org.milyn.edisax.model.internal.Delimiters;
 import org.milyn.edisax.unedifact.UNEdifactInterchangeParser;
 import org.milyn.edisax.unedifact.registry.DefaultMappingsRegistry;
+import org.milyn.edisax.util.NamespaceDeclarationStack;
 import org.milyn.namespace.NamespaceResolver;
 import org.milyn.xml.SmooksXMLReader;
 import org.xml.sax.InputSource;
@@ -78,7 +79,7 @@ public class UNEdifactReader extends UNEdifactInterchangeParser implements
             BufferedSegmentReader segmentReader, boolean validate,
             ControlBlockHandlerFactory controlBlockHandlerFactory, NamespaceResolver namespaceResolver) {
 		return new InterchangeContext(segmentReader, registry,
-				getContentHandler(), controlBlockHandlerFactory, namespaceResolver, validate) {
+				getContentHandler(), controlBlockHandlerFactory, namespaceResolver, null, validate) {
 			@Override
 			public void pushDelimiters(Delimiters delimiters) {
 				super.pushDelimiters(delimiters);

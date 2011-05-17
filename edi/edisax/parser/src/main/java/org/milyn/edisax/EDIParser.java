@@ -47,6 +47,7 @@ import org.milyn.edisax.model.internal.SubComponent;
 import org.milyn.edisax.model.internal.ValueNode;
 import org.milyn.edisax.util.EDIUtils;
 import org.milyn.edisax.util.NamespaceDeclarationStack;
+import org.milyn.edisax.util.SchemaLocationResolver;
 import org.milyn.javabean.DataDecodeException;
 import org.milyn.lang.MutableInt;
 import org.milyn.namespace.NamespaceResolver;
@@ -149,6 +150,7 @@ public class EDIParser implements XMLReader {
 
     public static final String FEATURE_VALIDATE = "http://xml.org/sax/features/validation";
     public static final String FEATURE_IGNORE_NEWLINES = "http://xml.org/sax/features/ignore-newlines";
+    public static final String SCHEMA_LOCATION_RESOLVER = "http://smooks.org/sax/features/generate-schema-locations";
 	private static final Attributes EMPTY_ATTRIBS = new AttributesImpl();
     
     private Map<String, Boolean> features;
@@ -166,6 +168,7 @@ public class EDIParser implements XMLReader {
 
     private EdifactModel edifactModel;
     private BufferedSegmentReader segmentReader;
+	private SchemaLocationResolver resolver;
 
     /**
      * Parse the supplied mapping model config path and return the generated EdiMap.
@@ -1001,9 +1004,15 @@ public class EDIParser implements XMLReader {
     }
     
     public Object getProperty(String name) throws SAXNotRecognizedException, SAXNotSupportedException {
+    	if (EDIParser.SCHEMA_LOCATION_RESOLVER.equals(name)) {
+    		return resolver;
+    	}
     	return null;
     }
-    
+
     public void setProperty(String name, Object value) throws SAXNotRecognizedException, SAXNotSupportedException {
+    	if (EDIParser.SCHEMA_LOCATION_RESOLVER.equals(name)) {
+    		this.resolver = (SchemaLocationResolver) value;
+    	}
     }
 }
